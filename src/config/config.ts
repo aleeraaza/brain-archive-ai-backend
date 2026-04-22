@@ -6,3 +6,5 @@ dotenv.config({
 
 export const NODE_ENV = process.env.NODE_ENV;
 export const PORT = process.env.PORT || 3001;
+export const JWT_SECRET = process.env.JWT_SECRET as string;
+export const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS || "10");

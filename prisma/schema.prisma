@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -10,4 +5,117 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+
+model User {
+  id        String   @id @default(cuid())  
+  fName     String
+  lName     String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contents  Content[] 
+  tags      Tag[]      
+  links     Link[]     
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────
+// CONTENT TABLE
+// The core table — stores everything user dumps:
+// YouTube links, Twitter links, Notes, PDFs, etc.
+// Each content belongs to one user
+// Each content can have many tags (via ContentTag join table)
+// ─────────────────────────────────────────────────────────
+model Content {
+  id        String      @id @default(cuid())
+  title     String
+  type      ContentType                     
+  link      String?                         
+  body      String?     @db.Text           
+
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tags      ContentTag[]                   
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([userId]) 
+  @@index([type])   
+  @@map("contents")
+}
+
+// ─────────────────────────────────────────────────────────
+// TAG TABLE
+// Tags are user-scoped — each user builds their own tag list
+// Starts with defaults but user can keep adding new ones
+// One tag can be on many contents
+// One content can have many tags
+// ─────────────────────────────────────────────────────────
+model Tag {
+  id        String   @id @default(cuid())
+  title     String
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  contents  ContentTag[]                  
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, title])  // same user can't have two tags with same name
+  @@map("tags")
+}
+
+// ─────────────────────────────────────────────────────────
+// CONTENTTAG TABLE (Join Table)
+// This is the bridge between Content and Tag
+// Replaces MongoDB's tags: tagReference[]
+// A content can have many tags, a tag can be on many contents
+// ─────────────────────────────────────────────────────────
+model ContentTag {                          
+  contentId String
+  tagId     String
+
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contentId, tagId]) 
+  @@map("content_tags")
+}
+
+// ─────────────────────────────────────────────────────────
+// LINK TABLE
+// When user wants to share their brain publicly
+// A unique hash is generated e.g. /brain/abc123
+// Whoever has the link can view that user's brain
+// ─────────────────────────────────────────────────────────
+model Link {
+  id        String   @id @default(cuid())
+  hash      String   @unique    
+  isActive  Boolean  @default(true)  
+
+  // Foreign key → User
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@map("links")
+}
+
+enum ContentType {
+  NOTE        
+  BOOKMARK   
+  DOCUMENT   
+  TWEET      
+  VIDEO       
+  AUDIO       
+  IMAGE      
 }
